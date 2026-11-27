@@ -1,7 +1,9 @@
-const biomes={speed:["Jungle","Meadow","Desert","Snowfield"],swim:["River","Reef","Marsh","Glacier"],climb:["Forest","Cliffs","Canyon","Ruins"]};
-const biomePalette={Jungle:'#77c69a',Meadow:'#bdeca0',Desert:'#f1d69c',Snowfield:'#cde9f5',River:'#8dc8ef',Reef:'#68d7d5',Marsh:'#9bb9a4',Glacier:'#b5dff4',Forest:'#8fb88a',Cliffs:'#b8a3a0',Canyon:'#e8af85',Ruins:'#c6b8d3'};
-const specialties=[["climb","Forest"],["speed","Meadow"],["swim","Marsh"],["speed","Meadow"],["speed","Jungle"],["climb","Cliffs"],["climb","Ruins"],["speed","Snowfield"],["swim","River"],["swim","Glacier"]];
-function specialty(i,terrain,biome){let [t,b]=specialties[i]||specialties[0];return (t===terrain?1.05:1)*(b===biome?1.10:1)}
+const biomes={speed:["Desert","Meadow","Jungle","Snowfield","Forbidden Land"],swim:["Glacier","Marsh","Reef","River","Abyssal Sea"],climb:["Ruins","Cliffs","Canyon","Forest","Ancient Mountain"]};
+const biomePalette={'Forbidden Land':'#c3a4ed','Abyssal Sea':'#467ca5','Ancient Mountain':'#c4b18a',Jungle:'#77c69a',Meadow:'#bdeca0',Desert:'#f1d69c',Snowfield:'#cde9f5',River:'#8dc8ef',Reef:'#68d7d5',Marsh:'#9bb9a4',Glacier:'#b5dff4',Forest:'#8fb88a',Cliffs:'#b8a3a0',Canyon:'#e8af85',Ruins:'#c6b8d3'};
+const specialties=[["climb","Ruins"],["speed","Meadow"],["swim","Marsh"],["speed","Desert"],["speed","Jungle"],["climb","Forest"],["climb","Ancient Mountain"],["speed","Forbidden Land"],["swim","River"],["swim","Reef"],["swim","Abyssal Sea"],["climb","Canyon"],["speed","Snowfield"],["swim","Glacier"],["climb","Cliffs"]];
+function specialty(i,terrain,biome){let [t,b]=specialties[i];let boost=[.05,.08,.12,.16,.20][speciesTier[i]];return t===terrain?1+boost*(b===biome?2:1):1}
+function habitatPick(key,previous){let names=biomes[key],pool=names.filter(n=>n!==previous),roll=Math.random()*pool.reduce((a,n)=>a+rarityTiers[names.indexOf(n)].race,0);for(let n of pool){roll-=rarityTiers[names.indexOf(n)].race;if(roll<0)return n}return pool.at(-1)}
+function glowPet(node,i,t,b){if(!node)return;let bonus=specialty(i,t,b)-1;node.style.filter=bonus>0?'drop-shadow(0 0 '+Math.round(4+bonus*35)+'px '+rarityTiers[speciesTier[i]].color+')':'none'}
 function awardSkillXP(p,k,amount){p.skillXP=p.skillXP||{};p.skillLevels=p.skillLevels||{};p.skillLevels[k]=p.skillLevels[k]||1;if(p.skillLevels[k]>=skillCap())return 0;p.skillXP[k]=(p.skillXP[k]||0)+Math.max(0,Math.round(amount));let gained=0;while(p.skillLevels[k]<skillCap()&&p.skillXP[k]>=skillNeed(p.skillLevels[k])){p.skillXP[k]-=skillNeed(p.skillLevels[k]);p.skillLevels[k]++;gained++}return gained}
 let trainingGame=null,trainingTimer=null;
 function trainingNeed(points){return 10+5*points}
@@ -15,13 +17,13 @@ const COURSE_TYPES=['speed','swim','climb'];
 function makeCourseSection(type,previous=''){
  const key=type||COURSE_TYPES[Math.floor(Math.random()*3)];
  const names=biomes[key].filter(n=>n!==previous);
- const name=names[Math.floor(Math.random()*names.length)]||biomes[key][0];
+ const name=habitatPick(key,previous);
  const length=8+Math.random()*22;
  const icons=key==='swim'?['🪷','🐟','🫧','🌊','🪨']:key==='climb'?['🪨','🌿','🍂','🌲','🪵']:['🌼','🌳','🍄','🌿','🪨'];
  return {type:key,name,length,decorations:Array.from({length:12+Math.floor(Math.random()*8)},()=>({x:5+Math.random()*90,y:Math.random()*96,size:13+Math.random()*30,icon:icons[Math.floor(Math.random()*icons.length)]}))};
 }
 function makeCourse(count,previous=''){
- const types=count===Infinity?[]:Array.from({length:count},(_,i)=>COURSE_TYPES[i%3]);
+ const types=count===Infinity?[]:Array.from({length:count},(_,i)=>pickRandom(COURSE_TYPES));
  let prior=previous;
  return types.map(type=>{let section=makeCourseSection(type,prior);prior=section.name;return section});
 }
@@ -50,7 +52,7 @@ function trainingPanel(section,id){
  return `<div class="training-panel" id="${id}" style="background:${biomePalette[section.name]||'#bce7b4'}"><span class="training-biome-label">${section.name}</span>${trainingScenery(section)}</div>`;
 }
 function trainStat(k){
- if(!statNames.includes(k)||raceState?.running||trainingGame?.running)return;
+ if(![...statNames,'stamina'].includes(k)||raceState?.running||trainingGame?.running)return;
  let p=s.pets[s.active];if(p.energy<2)return toast('Feed your pet before training!');
  trainingGame={skill:k,pet:s.active,running:true,finished:false,segments:0,earned:0,distance:0,obstacles:0,phase:0,lastObstacle:'',startedAt:performance.now(),elapsedMs:0,speedMultiplier:1,lane:50,boostUntil:0,jumpUntil:0,obstacle:null,nextObstacle:1600,successes:0};
  newTrainingSection(trainingGame);
@@ -62,22 +64,13 @@ function trainStat(k){
  const g=trainingGame;if(!g?.running){clearInterval(autoTrainingTimer);return}
  const pet=s.pets[g.pet];g.frame=(g.frame||0)+1;if(g.speedMultiplier===1&&g.frame%2===0)return;g.phase++;
  g.elapsedMs+=420;
- const boost=g.elapsedMs<g.boostUntil?(g.boostPower||1):1;
+ const boost=specialty(g.pet,g.terrain,g.biome);
  g.distance+=Math.max(.3,effectiveStat(g.pet,g.terrain)/140)*boost;
  g.lastObstacle='';
- if(g.terrain!=='speed'){
-   if(!g.obstacle&&g.elapsedMs>=g.nextObstacle)g.obstacle={x:15+Math.random()*70,born:g.elapsedMs};
-   if(g.obstacle&&g.elapsedMs-g.obstacle.born>=2100){
-     const avoided=g.terrain==='swim'?Math.abs(g.lane-g.obstacle.x)>18:g.elapsedMs<=g.jumpUntil;
-     if(avoided){g.successes++;g.lastObstacle='Nice dodge!';awardSkillXP(pet,g.terrain,2)}
-     else{let damage=1+Math.floor(Math.random()*5);pet.energy=Math.max(0,pet.energy-damage);g.obstacles++;g.lastObstacle='Obstacle! −'+damage+' energy'}
-     g.obstacle=null;g.nextObstacle=g.elapsedMs+900+Math.random()*1300;
-   }
- }
  pet.energy=Math.max(0,pet.energy-(.025+.18/(1+effectiveStat(g.pet,'endure')/55)));
  if(g.distance>=g.sectionLength){
   g.segments++;let gain=5+Math.floor(Math.random()*5);
-  awardCourseXP(pet,g.currentSection,gain,gain);g.earned+=gain;
+  if(g.skill==='stamina'){awardSkillXP(pet,'endure',gain);awardSkillXP(pet,'recover',gain)}else awardSkillXP(pet,g.terrain,gain);g.earned+=gain;
   s.globalXP+=Math.round(gain*.35);pet.xp+=Math.round(gain*.35);
   const overflow=g.distance-g.sectionLength;
   g.currentSection=g.nextSection;g.obstacle=null;g.nextObstacle=g.elapsedMs+1200;
@@ -110,9 +103,9 @@ function showAutoTraining(rebuild=false){
  // Both terrains exist at the same time. The incoming terrain scrolls
  // down from above, separated by a clear boundary; no sudden color swap.
  if(rebuild||!document.getElementById('training-current')){
- host.innerHTML=`<div class="training-fullscreen" role="dialog" aria-modal="true"><div class="row"><h2>🏋️ ${skillLabels[g.skill]}</h2><div class="row"><button class="btn secondary small" data-action="train2x" id="training-speed">1× Speed</button><button class="btn secondary small" data-action="autofinish">Finish</button></div></div><div class="auto-course training-course">${trainingPanel(g.currentSection,'training-current')}${trainingPanel(g.nextSection,'training-upcoming')}<div class="training-divider" id="training-divider"></div><div class="auto-pet" id="interactive-pet">${animals[g.pet][1]}</div><span id="interactive-obstacle" class="interactive-obstacle" hidden>🪨</span></div><div id="training-controls"></div><div class="training-score">⏱️ <span id="training-clock">00:00</span></div><div class="training-details"><strong>⚡ <span id="training-energy">${Math.ceil(p.energy)}/100</span> · <span id="training-section-count">0 sections</span></strong><p id="training-info"></p><div class="track"><div id="training-progress" class="fill xp"></div></div><p id="training-obstacles"></p></div><button class="btn" data-action="autofinish">Finish training</button></div>`;
+ host.innerHTML=`<div class="training-fullscreen" role="dialog" aria-modal="true"><div class="row"><h2>🏋️ ${g.skill==='stamina'?'Stamina':skillLabels[g.skill]}</h2><div class="row"><button class="btn secondary small" data-action="train2x" id="training-speed">1× Speed</button><button class="btn secondary small" data-action="autofinish">Finish</button></div></div><div class="auto-course training-course">${trainingPanel(g.currentSection,'training-current')}${trainingPanel(g.nextSection,'training-upcoming')}<div class="training-divider" id="training-divider"></div><div class="auto-pet" id="interactive-pet">${animals[g.pet][1]}</div><span id="interactive-obstacle" class="interactive-obstacle" hidden>🪨</span></div><div id="training-controls"></div><div class="training-score">⏱️ <span id="training-clock">00:00</span></div><div class="training-details"><strong>⚡ <span id="training-energy">${Math.ceil(p.energy)}/${maxEnergy(p)}</span> · <span id="training-section-count">0 sections</span></strong><p id="training-info"></p><div class="track"><div id="training-progress" class="fill xp"></div></div><p id="training-obstacles"></p></div><button class="btn" data-action="autofinish">Finish training</button></div>`;
  }
- updateTrainingControls(g);
+ glowPet(document.getElementById('interactive-pet'),g.pet,g.terrain,g.biome);
  const current=document.getElementById('training-current'),upcoming=document.getElementById('training-upcoming'),divider=document.getElementById('training-divider');
  // The entire current biome scrolls past. Next biome moves in at the
  // boundary, with a short neutral obstacle transition stripe.
@@ -121,7 +114,7 @@ function showAutoTraining(rebuild=false){
  if(upcoming)upcoming.style.transform=`translateY(${travel-100}%)`;
  if(divider)divider.style.top=`${travel}%`;
  const clock=document.getElementById('training-clock');if(clock){const secs=Math.floor(g.elapsedMs/1000);clock.textContent=String(Math.floor(secs/60)).padStart(2,'0')+':'+String(secs%60).padStart(2,'0')}
- const energy=document.getElementById('training-energy');if(energy)energy.textContent=`${Math.ceil(p.energy)}/100`;
+ const energy=document.getElementById('training-energy');if(energy)energy.textContent=`${Math.ceil(p.energy)}/${maxEnergy(p)}`;
  const sectionCount=document.getElementById('training-section-count');if(sectionCount)sectionCount.textContent=g.segments+' sections';const speedButton=document.getElementById('training-speed');if(speedButton)speedButton.textContent=g.speedMultiplier+'× Speed';const info=document.getElementById('training-info');if(info)info.textContent=`${g.biome} → ${g.nextSection.name} · ${g.segments} sections · +${g.earned} skill XP`;
  const bar=document.getElementById('training-progress');if(bar)bar.style.width=`${progress*100}%`;
  const obs=document.getElementById('training-obstacles');if(obs)obs.textContent=`${Math.floor(g.distance)} / ${Math.ceil(g.sectionLength)} distance · ${g.lastObstacle||'Running…'}`;
@@ -143,8 +136,8 @@ function updateTrainingControls(g){
 }
 function trainingBoost(){let g=trainingGame;if(!g?.running||g.terrain!=='speed'||g.elapsedMs<g.boostUntil)return;let d=Math.abs(timingPosition(g)-50);g.boostPower=d<=10?2:d<=28?1.5:1.15;g.boostUntil=g.elapsedMs+1600;g.successes++;awardSkillXP(s.pets[g.pet],'speed',d<=10?3:d<=28?2:1)}
 function trainingJump(){let g=trainingGame;if(g?.running&&g.terrain==='climb'&&g.elapsedMs>=g.jumpUntil+300)g.jumpUntil=g.elapsedMs+850}
-function finishAutoTraining(){let g=trainingGame;if(!g)return;clearInterval(autoTrainingTimer);g.running=false;g.finished=true;save();document.getElementById('overlay').innerHTML=`<div class="training-fullscreen"><h2>🏅 Training finished</h2><p>⏱️ ${Math.floor(g.elapsedMs/60000)}m ${Math.floor(g.elapsedMs/1000)%60}s · Cleared ${g.segments} sections · +${g.earned} ${skillLabels[g.skill]} XP</p><p>⚡ ${Math.ceil(s.pets[g.pet].energy)} energy left</p><div class="modalactions"><button class="btn secondary" data-action="autoclose">Finish</button><button class="btn" data-action="autoagain" ${s.pets[g.pet].energy<2?'disabled':''}>Continue</button></div></div>`}
+function finishAutoTraining(){let g=trainingGame;if(!g)return;clearInterval(autoTrainingTimer);g.running=false;g.finished=true;save();document.getElementById('overlay').innerHTML=`<div class="training-fullscreen"><h2>🏅 Training finished</h2><p>⏱️ ${Math.floor(g.elapsedMs/60000)}m ${Math.floor(g.elapsedMs/1000)%60}s · Cleared ${g.segments} sections · +${g.earned} ${g.skill==='stamina'?'Stamina':skillLabels[g.skill]} XP</p><p>⚡ ${Math.ceil(s.pets[g.pet].energy)} energy left</p><div class="modalactions"><button class="btn secondary" data-action="autoclose">Finish</button><button class="btn" data-action="autoagain" ${s.pets[g.pet].energy<2?'disabled':''}>Continue</button></div></div>`}
 function showTraining(){let g=trainingGame,host=document.getElementById('overlay');if(!g||!host)return;let names={speed:'🏃 Speed · Catch the target',swim:'🏊 Swim · Dodge the waves',climb:'🧗 Climb · Grab the handhold',endure:'⚡ Endure · Hold your pace',recover:'💨 Recover · Time your breath'};let instructions={speed:'Tap when the moving marker reaches the green target.',swim:'Dodge alternating waves: aim for the left lane, then right lane.',climb:'Grab handholds in order: left, middle, right.',endure:'Keep a steady pace: aim for the middle of the slower-moving meter.',recover:'Hit the tiny center window on the fast-moving recovery meter.'};host.innerHTML=`<div class="training-fullscreen" role="dialog" aria-modal="true" aria-label="Training minigame"><h2>${names[g.skill]}</h2><p class="hint">${instructions[g.skill]} Eight tries, 22 seconds. Better accuracy earns more training XP.</p><div style="position:relative;height:76px;border-radius:18px;background:var(--bg);border:2px solid var(--line);margin:25px 0;overflow:hidden"><div style="position:absolute;left:${g.skill==='swim'?(g.attempts%2?22:62):g.skill==='climb'?[17,42,67][g.attempts%3]:g.skill==='recover'?46:42}%;width:${g.skill==='recover'?8:16}%;top:0;bottom:0;background:#65c99177;border-left:2px solid #3b9d68;border-right:2px solid #3b9d68"></div><div id="training-marker" style="position:absolute;left:${g.position}%;top:5px;bottom:5px;width:9px;border-radius:8px;background:var(--accent);transform:translateX(-50%);box-shadow:0 0 10px #0003"></div></div><p id="training-counter" style="text-align:center;font-weight:800">${g.attempts}/8 attempts · ${g.score} points</p><div class="modalactions"><button class="btn secondary" data-action="trainingfinish">Finish early</button><button class="btn" data-action="trainingtap">${g.skill==='swim'?'Dodge!':g.skill==='climb'?'Grab!':g.skill==='recover'?'Recover!':g.skill==='endure'?'Hold pace!':'Tap!'}</button></div></div>`}
 function trainingTap(){let g=trainingGame;if(!g||g.finished)return;let target=g.skill==='speed'?50:g.skill==='swim'?(g.attempts%2?30:70):g.skill==='climb'?[25,50,75][g.attempts%3]:g.skill==='endure'?50:50;let distance=Math.abs(g.position-target);g.score+=distance<(g.skill==='recover'?5:8)?3:distance<17?2:distance<28?1:0;g.attempts++;g.phase+=1.7;if(g.attempts>=8)finishTraining();else showTraining()}
 function finishTraining(){let g=trainingGame;if(!g||g.finished)return;g.finished=true;clearInterval(trainingTimer);let earned=Math.max(1,Math.min(5,Math.ceil(g.score/5))),p=s.pets[g.pet],k=g.skill;p.trainingXP[k]=(p.trainingXP[k]||0)+earned;let gains=0,cap=level(p.xp)*10;while(p.training[k]<cap&&p.trainingXP[k]>=trainingNeed(p.training[k])){p.trainingXP[k]-=trainingNeed(p.training[k]);p.training[k]++;gains++}save();let host=document.getElementById('overlay');host.innerHTML=`<div class="training-fullscreen" role="dialog" aria-modal="true"><h2>🎉 Training complete!</h2><p>You earned <strong>${earned} training XP</strong> for ${esc(k)}.</p><p>${gains?`🌟 +${gains} stat point!`:`${p.trainingXP[k]}/${trainingNeed(p.training[k])} XP toward your next point.`}</p><button class="btn secondary" data-action="trainingclose">Finish</button><button class="btn" data-action="trainingagain">Continue training</button></div>`}
-function trainingMenu(){let p=s.pets[s.active];let host=document.getElementById('overlay');host.innerHTML=`<div class="training-fullscreen" role="dialog" aria-modal="true"><div class="row"><h2>🏋️ Choose a skill</h2><button class="btn secondary" data-action="trainingmenuclose">✕ Close</button></div><p class="hint">Training has no entry energy cost. Energy drains slowly as your pet runs; obstacles may drain an additional 1–5 energy.</p>${petSkillSheet(p)}<div class="training-menu">${statNames.map(k=>`<button class="btn secondary" data-action="train" data-stat="${k}" ${p.energy<2||p.skillLevels?.[k]>=skillCap()?'disabled':''}>${skillLabels[k]} <span class="tiny">· Auto train</span></button>`).join('')}</div></div>`}
+function trainingMenu(){let p=s.pets[s.active];let host=document.getElementById('overlay');host.innerHTML=`<div class="training-fullscreen" role="dialog" aria-modal="true"><div class="row"><h2>🏋️ Choose a skill</h2><button class="btn secondary" data-action="trainingmenuclose">✕ Close</button></div><p class="hint">Training has no entry energy cost. Training is automatic. Energy drains slowly as your pet moves.</p>${petSkillSheet(p)}<div class="training-menu">${['speed','swim','climb','stamina'].map(k=>`<button class="btn secondary" data-action="train" data-stat="${k}" ${p.energy<2||(k==='stamina'?p.skillLevels?.endure>=skillCap()&&p.skillLevels?.recover>=skillCap():p.skillLevels?.[k]>=skillCap())?'disabled':''}>${k==='stamina'?'⚡ Stamina (Endurance + Recovery)':skillLabels[k]} <span class="tiny">· Auto train</span></button>`).join('')}</div></div>`}
