@@ -4,7 +4,7 @@ const specialties=[["climb","Ruins"],["speed","Meadow"],["swim","Marsh"],["speed
 function specialty(i,terrain,biome){let [t,b]=specialties[i];let boost=[.05,.08,.12,.16,.20][speciesTier[i]];return t===terrain?1+boost*(b===biome?2:1):1}
 function habitatPick(key,previous){let names=biomes[key],pool=names.filter(n=>n!==previous),roll=Math.random()*pool.reduce((a,n)=>a+rarityTiers[names.indexOf(n)].race,0);for(let n of pool){roll-=rarityTiers[names.indexOf(n)].race;if(roll<0)return n}return pool.at(-1)}
 function glowPet(node,i,t,b){if(!node)return;let bonus=specialty(i,t,b)-1;node.style.filter=bonus>0?'drop-shadow(0 0 '+Math.round(4+bonus*35)+'px '+rarityTiers[speciesTier[i]].color+')':'none'}
-function awardSkillXP(p,k,amount){p.skillXP=p.skillXP||{};p.skillLevels=p.skillLevels||{};p.skillLevels[k]=p.skillLevels[k]||1;if(p.skillLevels[k]>=skillCap())return 0;p.skillXP[k]=(p.skillXP[k]||0)+Math.max(0,Math.round(amount));let gained=0;while(p.skillLevels[k]<skillCap()&&p.skillXP[k]>=skillNeed(p.skillLevels[k])){p.skillXP[k]-=skillNeed(p.skillLevels[k]);p.skillLevels[k]++;gained++}return gained}
+function awardSkillXP(p,k,amount){p.skillXP=p.skillXP||{};p.skillLevels=p.skillLevels||{};p.skillLevels[k]=p.skillLevels[k]||1;if(p.skillLevels[k]>=skillCap())return 0;p.skillXP[k]=(p.skillXP[k]||0)+Math.max(0,Math.round(amount*(1+gearBonus(p,'skillXP'))));let gained=0;while(p.skillLevels[k]<skillCap()&&p.skillXP[k]>=skillNeed(p.skillLevels[k])){p.skillXP[k]-=skillNeed(p.skillLevels[k]);p.skillLevels[k]++;gained++}return gained}
 let trainingGame=null,trainingTimer=null;
 function trainingNeed(points){return 10+5*points}
 let autoTrainingTimer=null;
@@ -67,7 +67,7 @@ function trainStat(k){
  const boost=specialty(g.pet,g.terrain,g.biome);
  g.distance+=Math.max(.3,effectiveStat(g.pet,g.terrain)/140)*boost;
  g.lastObstacle='';
- pet.energy=Math.max(0,pet.energy-(.025+.18/(1+effectiveStat(g.pet,'endure')/55)));
+ pet.energy=Math.max(0,pet.energy-(.025+.18/(1+effectiveStat(g.pet,'endure')/55))*(1-gearBonus(pet,'saving')));
  if(g.distance>=g.sectionLength){
   g.segments++;let gain=5+Math.floor(Math.random()*5);
   if(g.skill==='stamina'){awardSkillXP(pet,'endure',gain);awardSkillXP(pet,'recover',gain)}else awardSkillXP(pet,g.terrain,gain);g.earned+=gain;
