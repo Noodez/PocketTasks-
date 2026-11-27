@@ -1,0 +1,2 @@
+function usernameForm(){return `<form id="username-form"><label class="field">Username<input name="username" required maxlength="40" autocomplete="nickname" value="${attr(s.profile.username||'')}"></label><p class="hint">Saved on this device with your progress. No online account yet.</p><button class="btn" type="submit">Save username</button></form>`}
+function usernamePrompt(){return s.profile.username?'':`<section class="panel"><h2>Choose your username</h2>${usernameForm()}</section>`}
