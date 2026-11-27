@@ -1,6 +1,7 @@
 'use strict';
 const STORE='pocket-stable-v1', DAY=86400000;
 const animals=[['Pip','🐱','Kitten',1],['Mochi','🐰','Bunny',2],['Sprout','🐸','Frog',3],['Biscuit','🐶','Puppy',4],['Pebble','🦊','Fox',6],['Nova','🐼','Panda',8],['Ember','🐲','Dragon',11],['Luna','🦄','Unicorn',15],['Clover','🦦','Otter',18],['Puddle','🐢','Turtle',21],['Tide','🐙','Kraken',25],['Summit','🐐','Mountain Goat',12],['Frost','🐺','Wolf',12],['Flipper','🦭','Seal',1],['Sky','🦅','Eagle',2]];
+animals.push(['Phoenix','🐦‍🔥','Phoenix',25],['Kitsu','🦊','Kitsune',20],['Splash','🐬','Dolphin',20],['Gryph','🦅','Griffin',20]);
 const catalog=[['Bow','🎀',35],['Top Hat','🎩',50],['Flower','🌸',40],['Crown','👑',120],['Sparkles','✨',60],['Ribbon','🎗️',30],['Sunglasses','🕶️',65],['Leaf','🍃',35],['Star','⭐',75],['Tiara','💎',140],['Mushroom','🍄',45],['Party Hat','🥳',55],['Heart','💗',70],['Butterfly','🦋',90],['Scarf','🧣',70],['Halo','😇',125],['Moon','🌙',80],['Bubbles','🫧',50]];
 const statNames=['speed','swim','climb','endure','recover'];
 // Species-specific natural ranges: Speed, Swim, Climb, Endure, Recover.
@@ -19,13 +20,15 @@ const speciesRanges=[
  [[65,85],[90,100],[60,85],[80,100],[65,90]],[[60,85],[20,45],[85,100],[75,95],[55,80]],[[85,100],[40,65],[65,85],[80,95],[60,80]],[[20,45],[85,100],[15,35],[65,85],[60,85]],[[65,85],[20,40],[85,100],[55,80],[65,85]]
 ];
 
+speciesRanges.push([[80,95],[55,80],[90,100],[80,95],[55,80]],[[80,95],[45,65],[60,80],[75,90],[65,85]],[[45,70],[85,100],[25,50],[75,90],[65,85]],[[65,85],[35,55],[85,100],[75,90],[65,85]]);
 const rivalNameSources=[['Gr|ace','Ja|mes','Cl|aire','Bl|ake','Br|ooke','Ch|ase','Fa|ith','Gr|ant','Pa|ige','Cl|ark','Qu|inn','Sc|ott','Sh|ane','Dr|ake','Re|ese'],['Kay|lin','Jay|den','Sar|ah','Ma|son','Chy|na','Cal|vin','Han|nah','Mar|cus','Ra|chel','Ash|ton','Jas|mine','Lo|gan','Char|lotte','Con|nor','Par|ker'],['Mari|anne','Ben|jamin','Nat|alie','Nich|olas','Abi|gail','An|thony','Saman|tha','Dom|inic','Re|becca','Oli|ver','Jes|sica','Juli|an','Caro|line','Zach|ary','Gabri|elle']];
 const rivalNamePools=rivalNameSources.map(list=>[0,1].map(i=>[...new Set(list.map(n=>n.split('|')[i]))]));
 const pickRandom=a=>a[Math.floor(Math.random()*a.length)];
-const rarityTiers=[{name:'Common',color:'#ffffff',race:50,starter:25},{name:'Uncommon',color:'#43a65c',race:25,starter:25},{name:'Rare',color:'#3b82f6',race:15,starter:25},{name:'Epic',color:'#a855f7',race:7,starter:15},{name:'Legendary',color:'#d9a520',race:3,starter:10}];
-const speciesTier=[0,1,1,0,2,3,4,4,3,2,4,2,3,0,1];
+const rarityTiers=[{name:'Common',color:'#ffffff',race:46,starter:20},{name:'Uncommon',color:'#43a65c',race:25,starter:25},{name:'Rare',color:'#3b82f6',race:15,starter:25},{name:'Epic',color:'#a855f7',race:7,starter:15},{name:'Legendary',color:'#d9a520',race:3,starter:10},{name:'Unique',color:'#ec4899',race:4,starter:5}];
+const speciesTier=[0,1,1,0,2,3,4,4,3,2,4,2,3,0,1,4,5,5,5];
+function rarityOrder(i){return speciesTier[i]===4?5:speciesTier[i]===5?4:speciesTier[i]}
 function rarityBadge(i){let r=rarityTiers[speciesTier[i]];return '<span class="chip" style="background:'+r.color+';color:#171717;border:1px solid #777">'+r.name+'</span>'}
-function weightedSpecies(pool,mode='race',previous=[]){let weights=pool.map(i=>rarityTiers[speciesTier[i]][mode]/3*Math.pow(.12,previous.filter(x=>x===i).length));let roll=Math.random()*weights.reduce((a,b)=>a+b,0);for(let j=0;j<pool.length;j++){roll-=weights[j];if(roll<0)return pool[j]}return pool.at(-1)}
+function weightedSpecies(pool,mode='race',previous=[]){let weights=pool.map(i=>rarityTiers[speciesTier[i]][mode]/speciesTier.filter(t=>t===speciesTier[i]).length*Math.pow(.12,previous.filter(x=>x===i).length));let roll=Math.random()*weights.reduce((a,b)=>a+b,0);for(let j=0;j<pool.length;j++){roll-=weights[j];if(roll<0)return pool[j]}return pool.at(-1)}
 function starterRoll(existing=[]){let out=[...new Set(existing)].filter(i=>Number.isInteger(i)&&i>=0&&i<animals.length).slice(0,6);if(out.length===6&&out.filter(i=>speciesTier[i]>=2).length<2)out=[];while(out.length<6){let need=Math.max(0,2-out.filter(i=>speciesTier[i]>=2).length),pool=animals.map((_,i)=>i).filter(i=>!out.includes(i)&&(6-out.length>need||speciesTier[i]>=2));out.push(weightedSpecies(pool,'starter'))}return out}
 const nameWords=[
 [['Jay','Mar','Cal','Ken','El','Sam','Ros','Ben','Ash','Lia','Nico','Em','Theo','Ari','Dani','Jo','Max','Kai'],['den','ibel','vin','dra','ena','uel','alie','jamin','ley','na','las','ilia','dor','elle','son','anna','ine','lyn']],
@@ -47,7 +50,7 @@ function seeded(seed){let x=seed|0;return ()=>{x|=0;x=x+0x6D2B79F5|0;let t=Math.
 function maintenance(){for(let p of s.pets){let elapsed=Math.max(0,Date.now()-(p.lastEnergy||Date.now()));p.energy=Math.min(maxEnergy(p),(p.energy??maxEnergy(p))+elapsed/60000*2*(1+gearBonus(p,'recovery')));p.lastEnergy=Date.now()}syncUnlocks();let today=localDate();if(!s.loginDates.includes(today)){s.loginDates.push(today);s.loginDates.sort()}if(s.lastSeen!==today){let diff=Math.max(0,dayCount(today)-dayCount(s.lastSeen||today));for(let p of s.pets)p.hp=Math.max(15,p.hp-Math.min(45,diff*4));s.lastSeen=today}if(s.quests.dailyPeriod!==today){s.quests.daily=makeQuests(false,today,3);s.quests.dailyPeriod=today}let w=weekPeriod();if(s.quests.bonusPeriod!==w){s.quests.bonus=makeQuests(true,w,2);s.quests.bonusPeriod=w}save()}
 function cssVars(){let r=document.documentElement.style;Object.entries({bg:s.settings.bg,card:s.settings.card,ink:s.settings.ink,accent:s.settings.accent}).forEach(([k,v])=>r.setProperty('--'+k,v));document.body.classList.toggle('compact',!!s.settings.compact)}
 function reward(xp,coins){let p=s.pets[s.active];let before=level(p.xp),beforeGlobal=level(s.globalXP);p.xp+=Math.round(xp*(1+gearBonus(p,'petXP')));s.globalXP+=xp;p.hp=Math.min(100,p.hp+9);s.coins+=coins;if(level(p.xp)>before)toast(`🎉 ${p.name} reached level ${level(p.xp)}!`);else if(level(s.globalXP)>beforeGlobal)toast('🎉 Trainer level up! A pet may have unlocked!');else toast(`✨ +${xp} XP · 🪙 +${coins} coins`)}
-const baseWeights=[8,5,1,15,12,25,30,28,10,6,20,18,22,16,5];
+const baseWeights=[8,5,1,15,12,25,30,28,10,6,20,18,22,16,5,22,14,24,20];
 function petWeight(p){return Math.round(baseWeights[p.id]*(1+.08*(level(p.xp)-1))*10)/10}
 function maxEnergy(p){return 100+5*(level(p.xp)-1)+gearBonus(p,'energy')}
 function feedPrice(){let bucket=Math.floor(Date.now()/900000),area=Math.max(1,s.area||1);return 8+2*(area-1)+(Math.imul(bucket^Math.imul(area,7919),2654435761)>>>0)%5}
