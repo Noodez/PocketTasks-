@@ -1,0 +1,31 @@
+# Equipment and accessories
+Transparent PNG, suggested 256 × 256.
+
+- bow.png
+- top-hat.png
+- flower.png
+- crown.png
+- sparkles.png
+- ribbon.png
+- sunglasses.png
+- leaf.png
+- star.png
+- tiara.png
+- mushroom.png
+- party-hat.png
+- heart.png
+- butterfly.png
+- scarf.png
+- halo.png
+- moon.png
+- bubbles.png
+- running-shoes.png
+- diving-mask.png
+- climbing-gloves.png
+- adventure-pack.png
+- energy-charm.png
+- training-manual.png
+- champion-medal.png
+- water-bottle.png
+- pet-rock.png
+- teddy-bear.png
